@@ -1,5 +1,6 @@
 import { createSlice } from '@reduxjs/toolkit';
 
+/*
 const DUMMY_EXPENSES = [
     {
         id: 'e1',
@@ -14,21 +15,20 @@ const DUMMY_EXPENSES = [
         date: new Date('2023-12-27')
     }
 ];
+*/
 
 const expenseSlice = createSlice({
     name: 'expenses',
     initialState: {
-        expenseList: DUMMY_EXPENSES
+        expenseList: []
     },
     reducers: {
         addExpense: (state, action) => {
-            const data = {
-                id: new Date().toString() + Math.random().toString(),
-                description: action.payload.description,
-                amount:action.payload.amount,
-                date:action.payload.date
-            }
-            state.expenseList.push(data);
+            state.expenseList.push(action.payload);
+        },
+        setExpenses: (state, action) => {
+            const dataInDesc = action.payload.expenseListFromDb.reverse();
+            state.expenseList = dataInDesc;
         },
         updateExpense: (state, action) => {
             state.expenseList.forEach(
@@ -50,6 +50,7 @@ const expenseSlice = createSlice({
 });
 
 export const addExpense = expenseSlice.actions.addExpense;
+export const setExpenses = expenseSlice.actions.setExpenses;
 export const updateExpense = expenseSlice.actions.updateExpense;
 export const removeExpense = expenseSlice.actions.removeExpense;
 

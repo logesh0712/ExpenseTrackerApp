@@ -7,6 +7,8 @@ ____________________________
 5. Apply styling to the screens & components.
 6. Add logic.
 7. Integrate Redux/ context API.
+8. Setup firebase
+9. Integrate Axios
 
 Other commands:
 _______________

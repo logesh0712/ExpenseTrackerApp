@@ -1,13 +1,20 @@
-import { useLayoutEffect } from "react";
+import {useState} from 'react';
+import { useContext, useLayoutEffect } from "react";
 import { View, StyleSheet } from "react-native";
 import IconButton from "../components/UI/IconButton";
 import { GlobalStyles } from '../constants/styles';
 
 import ExpenseForm from '../components/ManageExpense/ExpenseForm';
+import LoadingOverlay from '../components/UI/LoadingOverlay';
+import ErrorOverlay from '../components/UI/ErrorOverlay';
 
 // Redux:
 import { useSelector, useDispatch } from 'react-redux';
 import { addExpense, updateExpense, removeExpense } from '../store/redux/expense';
+
+//http
+import {storeExpense, updateExpenseDb, deleteExpenseDb} from '../util/http';
+
 
 //NOTE
 // If a component is loaded as a screen, then a property is sent by default by react-native.
@@ -16,6 +23,11 @@ import { addExpense, updateExpense, removeExpense } from '../store/redux/expense
 
 function ManageExpense({route, navigation})
 {
+    const [isSubmitting, setIsSubmitting] = useState(false);
+    const [error,setError] = useState(null);
+    const [formDataIfError, setFormDataIfError] = useState(undefined);
+    //const [selectedExpense, setSelectedExpense] = useState(undefined);
+
     const dispatch = useDispatch();
     
     const expenseId = route.params?.expenseId;
@@ -29,22 +41,43 @@ function ManageExpense({route, navigation})
         });
     },[navigation, isEditing]);
 
+    
     var selectedExpense = undefined;
     if(isEditing)
     {
         const expenseList = useSelector((state)=> state.expenses.expenseList);
+        //setSelectedExpense(expenseList.find((expense) => expense.id === expenseId));
         selectedExpense = expenseList.find((expense) => expense.id === expenseId);
     }
 
-    function deleteExpenseHandler()
+    if(!isEditing && formDataIfError)
     {
-        dispatch(removeExpense(
-            {
-                'expenseId' : expenseId,
-            }
-        ));
+        selectedExpense = formDataIfError;
+    }
 
-        navigation.goBack();
+    async function deleteExpenseHandler()
+    {
+        setIsSubmitting(true);
+
+        try
+        {
+            console.log("In delete " + expenseId);
+            await deleteExpenseDb(expenseId);
+
+            console.log("In delete done" + expenseId);
+            dispatch(removeExpense(
+                {
+                    'expenseId' : expenseId,
+                }
+            ));
+            navigation.goBack();
+        }
+        catch(error)
+        {
+            setError("Failed to delete the expense. Error: " + error.message);
+        }
+
+        setIsSubmitting(false);
     }
 
     function cancelHandler()
@@ -52,19 +85,53 @@ function ManageExpense({route, navigation})
         navigation.goBack();
     }
 
-    function confirmHandler(expenseData)
+    async function confirmHandler(expenseDataInput)
     {
-        if(isEditing)
+        setIsSubmitting(true);
+        try
         {
-            expenseData['id'] = expenseId;
-            dispatch(updateExpense(expenseData));
+            if(isEditing)
+            {
+                await updateExpenseDb(expenseId, expenseDataInput);
+                // Dont send id to db. Instead send id to redux.
+                expenseDataInput['id'] = expenseId;
+                dispatch(updateExpense(expenseDataInput));
+            }
+            else
+            {
+                setFormDataIfError(expenseDataInput);
+                const idResp = await storeExpense(expenseDataInput);
+                const expenseDataInputWithId = {...expenseDataInput, 'id': idResp};
+                dispatch(addExpense(expenseDataInputWithId));
+                setFormDataIfError(undefined);
+            }
+            navigation.goBack();
         }
-        else
+        catch(error)
         {
-            dispatch(addExpense(expenseData));
+            setError("Failed to Add/Update expense. Error: " + error.message);
         }
 
-        navigation.goBack();
+        setIsSubmitting(false);
+    }
+
+    function errorHandler()
+    {
+        setError(null);
+    }
+
+    if (error && !isSubmitting)
+    {
+        return (
+            <ErrorOverlay message={error} onConfirm={errorHandler}></ErrorOverlay>
+        );
+    }
+
+    if (isSubmitting)
+    {
+        return (
+            <LoadingOverlay></LoadingOverlay>
+        );
     }
 
     return (
